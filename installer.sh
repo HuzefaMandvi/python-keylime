@@ -34,7 +34,7 @@ MIN_PYTHON_VERSION="2.7.10"
 MIN_PYSETUPTOOLS_VERSION="0.7"
 MIN_PYTORNADO_VERSION="4.3"
 MIN_PYM2CRYPTO_VERSION="0.21.1"
-MIN_PYZMQ_VERSION="14.4"
+MIN_PYZMQ_VERSION="1.0"
 MIN_PYCRYPTODOMEX_VERSION="3.4.1"
 MIN_GO_VERSION="1.8.4"
 
@@ -53,25 +53,6 @@ confirm_force_install () {
         *) return 1 ;;
     esac
 }
-
-
-# Which package management system are we using? 
-if [[ -n "$(command -v yum)" ]]; then
-    PACKAGE_MGR=$(command -v yum)
-    PYTHON_PREIN="epel-release git wget"
-    PYTHON_DEPS="python python-pip python-devel python-setuptools python-zmq gcc openssl-devel"
-    PYTHON_PIPS="pycryptodomex m2crypto tornado"
-    BUILD_TOOLS="openssl-devel libtool gcc automake gcc-c++"
-elif [[ -n "$(command -v apt-get)" ]]; then
-    PACKAGE_MGR=$(command -v apt-get)
-    PYTHON_PREIN="git"
-    PYTHON_DEPS="python python-pip python-dev python-setuptools python-m2crypto python-zmq"
-    PYTHON_PIPS="pycryptodomex tornado"
-    BUILD_TOOLS="build-essential libssl-dev libtool automake"
-else
-   echo "No recognized package manager found on this system!" 1>&2
-   exit 1
-fi
 
 
 # Command line params 
@@ -118,82 +99,51 @@ echo
 echo "=================================================================================="
 echo $'\t\t\tInstalling python & crypto libs'
 echo "=================================================================================="
-$PACKAGE_MGR install -y $PYTHON_PREIN
-if [[ $? > 0 ]] ; then
-    echo "ERROR: Package(s) failed to install properly!"
-    exit 1
-fi
-$PACKAGE_MGR install -y $PYTHON_DEPS
-if [[ $? > 0 ]] ; then
-    echo "ERROR: Package(s) failed to install properly!"
-    exit 1
-fi
-pip install $PYTHON_PIPS
 
+PYTHON_PIPS="pycryptodomex m2crypto tornado zmq"
+pip2.7 install $PYTHON_PIPS
 
 # Ensure Python is installed 
-if [[ ! `command -v python` ]] ; then
-    echo "ERROR: Python failed to install properly!"
+if [[ ! `command -v python2.7` ]] ; then
+    echo "ERROR: Python2.7 failed to install properly!"
     exit 1
 else 
     # Ensure Python installed meets min requirements 
-    py_ver=$(python -c 'import platform; print platform.python_version()')
+    py_ver=$(python2.7 -c 'import platform; print platform.python_version()')
     if ! $(version_checker "$MIN_PYTHON_VERSION" "$py_ver"); then
         confirm_force_install "ERROR: Minimum Python version is $MIN_PYTHON_VERSION, but $py_ver is installed!" || exit 1
     fi
     
     # Ensure Python setuptools installed meets min requirements 
-    pyset_ver=$(python -c 'import setuptools; print setuptools.__version__')
+    pyset_ver=$(python2.7 -c 'import setuptools; print setuptools.__version__')
     if ! $(version_checker "$MIN_PYSETUPTOOLS_VERSION" "$pyset_ver"); then
         confirm_force_install "ERROR: Minimum python-setuptools version is $MIN_PYSETUPTOOLS_VERSION, but $pyset_ver is installed!" || exit 1
     fi
     
     # Ensure Python tornado installed meets min requirements 
-    pynado_ver=$(python -c 'import tornado; print tornado.version')
+    pynado_ver=$(python2.7 -c 'import tornado; print tornado.version')
     if ! $(version_checker "$MIN_PYTORNADO_VERSION" "$pynado_ver"); then
         confirm_force_install "ERROR: Minimum python-tornado version is $MIN_PYTORNADO_VERSION, but $pynado_ver is installed!" || exit 1
     fi
     
     # Ensure Python M2Crypto installed meets min requirements 
-    pym2_ver=$(python -c 'import M2Crypto; print M2Crypto.version')
+    pym2_ver=$(python2.7 -c 'import M2Crypto; print M2Crypto.version')
     if ! $(version_checker "$MIN_PYM2CRYPTO_VERSION" "$pym2_ver"); then
         confirm_force_install "ERROR: Minimum python-M2Crypto version is $MIN_PYM2CRYPTO_VERSION, but $pym2_ver is installed!" || exit 1
     fi
     
     # Ensure Python ZeroMQ installed meets min requirements 
-    pyzmq_ver=$(python -c 'import zmq; print zmq.__version__')
+    pyzmq_ver=$(python2.7 -c 'import zmq; print zmq.__version__')
     if ! $(version_checker "$MIN_PYZMQ_VERSION" "$pyzmq_ver"); then
         confirm_force_install "ERROR: Minimum python-zmq version is $MIN_PYZMQ_VERSION, but $pyzmq_ver is installed!" || exit 1
     fi
     
     # Ensure Python pycryptodomex installed meets min requirements 
-    pycdom_ver=$(pip freeze | grep pycryptodomex | cut -d"=" -f3)
+    pycdom_ver=$(pip2.7 freeze | grep pycryptodomex | cut -d"=" -f3)
     if ! $(version_checker "$MIN_PYCRYPTODOMEX_VERSION" "$pycdom_ver"); then
         confirm_force_install "ERROR: Minimum python-pycryptodomex version is $MIN_PYM2CRYPTO_VERSION, but $pycdom_ver is installed!" || exit 1
     fi
 fi
-
-
-# Download Keylime (if necessary) 
-if [[ "$STUB" -eq "1" ]] ; then
-    if [[ -z "$KEYLIME_DIR" ]] ; then
-        KEYLIME_DIR=`pwd`
-        KEYLIME_DIR+="/keylime"
-        if [[ ! -d "$KEYLIME_DIR" ]] ; then
-            mkdir -p $KEYLIME_DIR
-        fi
-    fi
-    
-    echo 
-    echo "=================================================================================="
-    echo $'\t\t\t\tDownloading Keylime'
-    echo "=================================================================================="
-    git clone $KEYLIME_GIT $KEYLIME_DIR
-    pushd $KEYLIME_DIR
-    git checkout $KEYLIME_VER
-    popd
-fi
-
 
 # If all else fails, assume they already have Keylime (we're in it!)
 if [[ -z "$KEYLIME_DIR" ]] ; then
@@ -322,11 +272,6 @@ echo "==========================================================================
 TMPDIR=`mktemp -d` || exit 1
 echo "INFO: Using temp tpm directory: $TMPDIR"
 
-$PACKAGE_MGR -y install $BUILD_TOOLS
-if [[ $? > 0 ]] ; then
-    echo "ERROR: Package(s) failed to install properly!"
-    exit 1
-fi
 mkdir -p $TMPDIR/tpm4720
 cd $TMPDIR/tpm4720
 git clone $TPM4720_GIT tpm4720-keylime
@@ -374,7 +319,7 @@ echo "==========================================================================
 echo $'\t\t\t\tInstall Keylime'
 echo "=================================================================================="
 cd $KEYLIME_DIR
-python setup.py install
+python2.7 setup.py install
 
 if [ -f /etc/keylime.conf ] ; then
     if ! cmp -s /etc/keylime.conf keylime.conf ; then
