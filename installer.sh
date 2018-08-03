@@ -22,7 +22,6 @@
 ##########################################################################################
 
 # Configure the installer here
-KEYLIME_GIT=https://github.com/mit-ll/python-keylime.git
 TPM4720_GIT=https://github.com/mit-ll/tpm4720-keylime.git
 GOLANG_SRC=https://dl.google.com/go
 KEYLIME_VER="master"
